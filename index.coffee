@@ -46,19 +46,24 @@ class RedisSMQ extends EventEmitter
 		, options
 
 		@redisns = opts.ns + ":"
-		if opts.client?.constructor?.name is "RedisClient"
+		if opts.client
 			@redis = opts.client
+			if @redis.constructor.name is "Redis"
+				@isIoRedis = true
 		else
 			@redis = RedisInst.createClient(opts.port, opts.host, opts.options)
 
-		@connected = @redis.connected or false
+		if @isIoRedis
+			@connected = @redis.status == 'ready'
+		else
+			@connected = @redis.connected or false
 
 		# If external client is used it might alrdy be connected. So we check here:
 		if @connected
 			@emit( "connect" )
 			@initScript()
 
-		# Once the connection is up 
+		# Once the connection is up
 		@redis.on "connect", =>
 			@connected = true
 			@emit( "connect" )
@@ -88,6 +93,7 @@ class RedisSMQ extends EventEmitter
 			["time"]
 		]
 		@redis.multi(mc).exec (err, resp) =>
+			resp = @_ioRedisMultiToRedisMulti(resp)
 			if err
 				@_handleError(cb, err)
 				return
@@ -171,6 +177,7 @@ class RedisSMQ extends EventEmitter
 			]
 
 			@redis.multi(mc).exec (err, resp) =>
+				resp = @_ioRedisMultiToRedisMulti(resp)
 				if err
 					@_handleError(cb, err)
 					return
@@ -199,6 +206,7 @@ class RedisSMQ extends EventEmitter
 		]
 
 		@redis.multi(mc).exec (err, resp) =>
+			resp = @_ioRedisMultiToRedisMulti(resp)
 			if err
 				@_handleError(cb, err)
 				return
@@ -249,6 +257,7 @@ class RedisSMQ extends EventEmitter
 				["zcount", key, resp[0] + "000", "+inf"]
 			]
 			@redis.multi(mc).exec (err, resp) =>
+				resp = @_ioRedisMultiToRedisMulti(resp)
 				if err
 					@_handleError(cb, err)
 					return
@@ -539,6 +548,17 @@ class RedisSMQ extends EventEmitter
 		return
 
 	# Helpers
+
+	_ioRedisMultiToRedisMulti: (multiResult) ->
+		if @isIoRedis
+			multiResult = multiResult.map (r) ->
+				err = r[0]
+				val = r[1]
+				if err
+					throw err
+				return val
+		return multiResult;
+
 	_formatZeroPad: (num, count) ->
 		((Math.pow(10, count)+num)+"").substr(1)
 

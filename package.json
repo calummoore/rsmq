@@ -9,7 +9,7 @@
 	},
 	"scripts": {
     "build": "coffee -c ./",
-		"test": "npm run build && mocha ./test/*.js"
+		"test": "mocha ./test/*.js"
 	},
 	"dependencies": {
 		"redis": "^2.6.5",
@@ -21,7 +21,9 @@
 	"devDependencies": {
 		"mocha": "*",
 		"should": "*",
-		"async": "*"
+		"async": "*",
+    "ioredis": "*",
+    "coffeescript": "*"
 	},
 	"keywords": [
 		"queue",
